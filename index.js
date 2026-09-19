@@ -1,8 +1,9 @@
 const { Server } = require("socket.io");
 
 const io = new Server({
+  maxHttpBufferSize: 1e7, // Увеличиваем лимит для передачи фото (10MB)
   cors: {
-    origin: "*", // Разрешить подключение ВСЕМ устройствам
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
@@ -16,9 +17,22 @@ io.on("connection", (socket) => {
   });
 
   socket.on("draw", (data) => {
-    // Пересылаем рисунок всем в комнате
     if (data && data.roomId) {
       socket.to(data.roomId).emit("draw", data);
+    }
+  });
+
+  // Событие очистки экрана
+  socket.on("clear", (data) => {
+    if (data && data.roomId) {
+      socket.to(data.roomId).emit("clear");
+    }
+  });
+
+  // Событие смены фонового фото
+  socket.on("setBackground", (data) => {
+    if (data && data.roomId) {
+      socket.to(data.roomId).emit("setBackground", data.image);
     }
   });
 

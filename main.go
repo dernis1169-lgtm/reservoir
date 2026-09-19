@@ -24,11 +24,10 @@ func main() {
 	})
 
 	server.OnEvent("/", "draw", func(s socketio.Conn, data interface{}) {
-		// Получаем данные и рассылаем их всем в комнате
-		// В Android приложении мы отправим roomId в объекте данных
+		// Правильный способ рассылки в Go Socket.IO
 		if m, ok := data.(map[string]interface{}); ok {
 			if roomId, ok := m["roomId"].(string); ok {
-				s.To(roomId).Emit("draw", data)
+				server.BroadcastToRoom("/", roomId, "draw", data)
 			}
 		}
 	})

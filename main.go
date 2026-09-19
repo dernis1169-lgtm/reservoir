@@ -7,26 +7,37 @@ import (
 	"os"
 
 	socketio "github.com/googollee/go-socket.io"
+	"github.com/googollee/go-socket.io/engineio"
+	"github.com/googollee/go-socket.io/engineio/transport"
+	"github.com/googollee/go-socket.io/engineio/transport/polling"
+	"github.com/googollee/go-socket.io/engineio/transport/websocket"
 )
 
 func main() {
-	server := socketio.NewServer(nil)
+	// Добавляем настройки CORS, чтобы сервер разрешал подключения
+	server := socketio.NewServer(&engineio.Options{
+		Transports: []transport.Transport{
+			polling.Default,
+			websocket.Default,
+		},
+		CheckOrigin: func(r *http.Request) bool {
+			return true // Разрешить всем устройствам подключаться
+		},
+	})
 
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
-		fmt.Println("New connection:", s.ID())
+		fmt.Println("connected:", s.ID())
 		return nil
 	})
 
 	server.OnEvent("/", "joinRoom", func(s socketio.Conn, roomId string) {
 		s.Join(roomId)
 		fmt.Printf("User %s joined room %s\n", s.ID(), roomId)
-		// Уведомляем пользователя, что он успешно вошел
 		s.Emit("joined", roomId)
 	})
 
 	server.OnEvent("/", "draw", func(s socketio.Conn, data interface{}) {
-		// Рассылаем ВСЕМ в этой комнате, включая отправителя (для синхронизации ID)
 		if m, ok := data.(map[string]interface{}); ok {
 			if roomId, ok := m["roomId"].(string); ok {
 				server.BroadcastToRoom("/", roomId, "draw", data)
@@ -43,11 +54,11 @@ func main() {
 	})
 
 	server.OnError("/", func(s socketio.Conn, e error) {
-		fmt.Println("Error:", e)
+		fmt.Println("error:", e)
 	})
 
 	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
-		fmt.Println("Closed:", reason)
+		fmt.Println("closed", reason)
 	})
 
 	go server.Serve()
@@ -59,6 +70,6 @@ func main() {
 	}
 
 	http.Handle("/socket.io/", server)
-	log.Printf("Server running on port %s...\n", port)
+	log.Printf("Server started on port %s...\n", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
